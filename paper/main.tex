@@ -1,0 +1,616 @@
+\documentclass[11pt]{article}
+
+% --- encoding & fonts (first) ---
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% --- math stack ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}      % supersets + fixes amsmath
+\usepackage{amsthm}
+\usepackage{bm}
+
+% --- tables, graphics, colour, lists, quotes ---
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{csquotes}
+
+% --- language & layout ---
+\usepackage[american]{babel}
+\usepackage[margin=1in]{geometry}
+
+% --- typography (after the font) ---
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+
+% --- references: hyperref near-last, xurl after, cleveref last ---
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue,breaklinks=true]{hyperref}
+\usepackage{xurl}
+\usepackage[capitalize,noabbrev]{cleveref}   % only needed if you use \cref; harmless otherwise
+
+% --- theorem environments: ONE section-based shared counter (retrievable refs: Lemma 2.1, Theorem 4.1) ---
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{question}[theorem]{Question}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- project macros ---
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\sgn}{\operatorname{sign}}
+
+\title{Averaged-Jacobian failure at the first open width of the Neural Jacobian Conjecture\thanks{Prompted by the Neural Jacobian Conjecture of Chen and Jiang, arXiv:2606.10806.}}
+\author{Logan M. Dixon\thanks{Independent Researcher. Email:
+\texttt{lmdixon23@gmail.com}. ORCID: 0009-0001-0592-462X.}}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+For sigmoid ridge networks $F(x)=A\sigma(Bx+c)$, the Neural Jacobian Conjecture asks whether
+$\det DF>0$ on $\mathbb R^n$ forces global injectivity. At widths $N=n$ and $N=n+1$, the known
+proofs reduce to mean-value univalence: the determinant is affine in the single varying slot and
+therefore commutes with segment averaging. We show that this mechanism fails at the first open
+width. An explicit network with $n=2$ and $N=4$ satisfies $\det DF(x)>0$ for every $x$, while one
+segment-averaged Jacobian has negative determinant; continuity then gives an intermediate pair with
+singular averaged Jacobian. Thus pointwise Jacobian positivity does not imply the nonsingularity
+condition used by the mean-value certificate. Global positivity is established by a directional tail
+bound and an exhaustive compact branch-and-bound certificate, whereas the averaged determinant is
+evaluated from exact sigmoid divided differences. A sign-vector duality argument excludes fourteen
+of the sixteen possible collision-direction patterns, confining any collision to two antipodal open
+sectors. The witness's injectivity remains open, as does the conjecture for $n\ge2$ and
+$N\ge n+2$. The example isolates the obstruction: once the kernel dimension reaches two, the
+determinant becomes genuinely multilinear and need not survive averaging.
+\end{abstract}
+
+\medskip
+\noindent\textbf{2020 Mathematics Subject Classification.} 26B10 (primary); 15A15, 15B35, 65G20, 68T07.
+
+\smallskip
+\noindent\textbf{Keywords.} global univalence; averaged Jacobian; Neural Jacobian Conjecture;
+sigmoid ridge network; validated numerics; sign-vector condition.
+
+\section{Introduction}\label{sec:intro}
+For a sigmoid ridge network
+\[
+F(x)=A\sigma(Bx+c),\qquad
+A\in\mathbb R^{n\times N},\quad B\in\mathbb R^{N\times n},\quad c\in\mathbb R^N,
+\]
+let $\mathcal N_{n,N}$ denote this class and let $\mathcal N^+_{n,N}$ be its subclass with
+$\det DF(x)>0$ for every $x$. The Neural Jacobian Conjecture asks whether every
+$F\in\mathcal N^+_{n,N}$ is one-to-one. The conjecture is known at $N=n$ and $N=n+1$. Its first unresolved width is
+$N=n+2$, beginning with $n=2$, $N=4$.
+
+The closed widths share a mean-value mechanism. A collision produces a segment-averaged Jacobian,
+and when the kernel dimension is one the determinant is affine in the only varying slot. Averaging
+therefore preserves its sign, so the averaged Jacobian remains nonsingular. At kernel dimension two,
+the determinant is genuinely multilinear and this commutation need not survive.
+
+The main result constructs that failure inside the conjecture's class. For an explicit
+$2$-input, $4$-ridge network, the pointwise determinant is positive on all of $\mathbb R^2$, yet the
+averaged determinant is negative for one segment and vanishes for an intermediate pair. The example
+does not refute the Neural Jacobian Conjecture: it separates pointwise positivity from the classical
+mean-value certificate that proves the smaller-width cases.
+
+The construction has two mathematical layers. Cauchy--Binet expresses both pointwise and averaged
+determinants through the same mixed-minor polynomial, evaluated respectively on derivative weights
+and their segment averages. A unique negative minor allows an average to cross the determinant-zero
+locus even though the pointwise derivative-weight path stays positive. A tail domination argument
+and a finite compact certificate establish global pointwise positivity. Sign-vector duality then
+rules out fourteen of the sixteen possible collision directions, leaving two antipodal sectors and a
+concrete open injectivity problem.
+
+Thus the obstruction is not local orientation but alignment: whenever an averaged Jacobian is
+singular, the displacement vector must avoid its kernel. The final sections formulate this remaining
+condition and separate the universal theorem-level claims from the platform-dependent frontier study.
+
+\section{Divided differences and averaged Jacobians}\label{sec:setting}
+
+Fix $F\in\mathcal N_{n,N}$ and write
+$\sigma(t)=(1+e^{-t})^{-1}$. Let $b_i^{\mathsf T}$ denote the $i$-th row of
+$B$, let $a_i$ denote the $i$-th column of $A$, and set
+$t_i(x)=b_i\cdot x+c_i$. The subclass $\mathcal N^+_{n,N}$ consists of the
+networks with $\det DF(x)>0$ for every $x$.
+
+\begin{lemma}[Divided-difference identity]\label{lem:dd}
+For $p,q\in\R^n$ with $u=q-p$,
+\[
+F(q)-F(p)=A\,\Delta(p,q)\,B\,u,
+\qquad
+\Delta(p,q)=\operatorname{diag}\bigl(\delta_1,\dots,\delta_N\bigr),
+\]
+where $\delta_i$ is the divided difference of $\sigma$ along the $i$-th
+preactivation,
+$\delta_i=\bigl(\sigma(t_i(q))-\sigma(t_i(p))\bigr)/\bigl(t_i(q)-t_i(p)\bigr)$
+when $t_i(q)\ne t_i(p)$ and $\delta_i=\sigma'(t_i(p))$ otherwise. Moreover
+$\Delta(p,q)=\int_0^1 D\bigl(p+tu\bigr)\,dt$, where
+$D(x)=\operatorname{diag}\bigl(\sigma'(t_i(x))\bigr)$, so that
+$A\,\Delta(p,q)\,B=\overline{DF}(p,q)$ is precisely the segment-averaged
+Jacobian. In particular every $\delta_i$ lies in $(0,\tfrac14]$.
+\end{lemma}
+
+\begin{proof}
+Componentwise, $\sigma(t_i(q))-\sigma(t_i(p))=\delta_i\,(b_i\cdot u)$ by
+the definition of the divided difference, and
+$\delta_i=\int_0^1\sigma'\bigl(t_i(p)+s\,b_i\cdot u\bigr)\,ds$ by the
+fundamental theorem of calculus; the integral form also covers the case
+$b_i\cdot u=0$. Strict positivity of $\delta_i$ follows from
+$\sigma'>0$, and $\delta_i\le\sup\sigma'=\tfrac14$. Since
+$DF(x)=A\,D(x)\,B$, linearity of the integral gives
+$A\Delta B=\int_0^1 DF(p+tu)\,dt$.
+\end{proof}
+
+By the Cauchy--Binet formula, for any positive diagonal
+$\Delta=\operatorname{diag}(\delta)$,
+\begin{equation}\label{eq:cb}
+\det\bigl(A\,\Delta\,B\bigr)
+=\sum_{|I|=n} m_I\,\delta_I,
+\qquad
+m_I:=\det(A_{\cdot I})\,\det(B_{I\cdot}),
+\quad
+\delta_I:=\prod_{i\in I}\delta_i,
+\end{equation}
+the sum over all $n$-element subsets $I\subseteq\{1,\dots,N\}$. We call the
+$m_I$ the \emph{minor products} of the pair $(A,B)$, and we call $(A,B)$
+\emph{mixed-minor} if the nonzero $m_I$ do not all share one sign.
+
+\section{The width-\texorpdfstring{$(n{+}1)$}{(n+1)} case is mean-value univalence}
+\label{sec:comment}
+
+The width-$(n+1)$ theorem of \cite{moonshine} is an immediate consequence of classical
+mean-value univalence. The same argument identifies the precise mechanism, corrects a sign
+normalization in the algebraic proofs, and fixes the scope of the open regime.
+
+\begin{lemma}[Averaged-Jacobian criterion; folklore, cf.\
+\cite{mcleod,parthasarathy,fmr}]\label{lem:mv}
+Let $\Omega\subseteq\R^n$ be open and convex and $G\in C^1(\Omega,\R^n)$.
+If for all $x,y\in\Omega$ the averaged Jacobian
+$\overline{DG}(x,y):=\int_0^1 DG\bigl(y+t(x-y)\bigr)\,dt$ is nonsingular,
+then $G$ is injective.
+\end{lemma}
+\begin{proof}
+$G(x)-G(y)=\overline{DG}(x,y)\,(x-y)$ by the fundamental theorem of
+calculus applied componentwise along the segment, which lies in $\Omega$ by
+convexity. Nonsingularity forces $x=y$ whenever $G(x)=G(y)$.
+\end{proof}
+
+\begin{proposition}[Subsumption of {\cite[Lemma~3.3]{moonshine}}]
+\label{prop:subsume}
+Let $\Omega\subseteq\R^n$ be open and convex, $h\in C^1(\Omega)$,
+$L:\R^{n+1}\to\R^n$ linear, and $T(y)=L(y,h(y))$ with $\det DT$
+nonvanishing on $\Omega$. Then $T$ is injective.
+\end{proposition}
+\begin{proof}
+Since $DT(y)=L\,(\mathrm{Id},Dh(y))$ and $\det DT$ is nonvanishing,
+$L$ has rank $n$; hence $\ker L$ is one-dimensional. As in
+\cite{moonshine}, after an invertible
+target change and, in the second case, an invertible source change, $T$
+takes one of the two normal forms
+$T(y)=y+p\,h(y)$ or $\widetilde T(u,s)=(u,\widetilde h(u,s))$.
+In the first form $\det DT(y)=1+\nabla h(y)\cdot p$ is \emph{affine} in
+$\nabla h$, so
+$\det\overline{DT}(x,y)=1+\bigl(\int_0^1\nabla h\bigr)\cdot p
+=\int_0^1\det DT\,dt$.
+In the second form $\det D\widetilde T=\partial_s\widetilde h$ is affine in
+the varying slot, and again
+$\det\overline{D\widetilde T}=\int_0^1\det D\widetilde T\,dt$.
+In both cases $\det DT$ is continuous, nonvanishing on the connected set
+$\Omega$, hence of constant sign, so the integral is nonzero. Lemma~\ref{lem:mv}
+applies.
+\end{proof}
+
+\begin{corollary}[{\cite[Theorem~3.2]{moonshine}}]
+Every $F\in\mathcal N^{+}_{n,n+1}$ is injective.
+\end{corollary}
+
+\begin{remark}[Mechanism]\label{rem:mechanism}
+The proof of Proposition~\ref{prop:subsume} works because, at kernel
+dimension one, the determinant is affine in the single varying slot, so
+\emph{determinant commutes with segment averaging}. At kernel dimension
+two or more the determinant is genuinely multilinear and the commutation
+can fail; Section~4 exhibits a certified failure inside the sigmoid ridge
+class itself. This, rather than fiber dimension per se, is the boundary
+between the closed and open regimes of the Neural Jacobian Conjecture.
+\end{remark}
+
+\begin{remark}[Sign repair for the algebraic proofs of \cite{moonshine}]
+Both algebraic proofs normalize the first $n$ preactivations by an affine
+change $y=B_1x+c_1$. Since
+$\det D(F\circ B_1^{-1})(y)=\det DF(x)\,\det B_1^{-1}$,
+positivity need not survive when $\det B_1<0$; the arguments use only
+constant nonzero sign, which does survive. The geometric proof of
+\cite{moonshine} is unaffected.
+\end{remark}
+
+\begin{remark}[Scope of the open case]
+For $n=1$ and every width $N$, any $F\in\mathcal N^{+}_{1,N}$ satisfies
+$F'>0$ and is strictly increasing, hence injective. The unresolved regime
+of the conjecture is therefore $n\ge 2$, $N\ge n+2$, not $N\ge n+2$
+unqualified.
+\end{remark}
+
+\section{A hierarchy of injectivity certificates}\label{sec:hierarchy}
+
+Identity \eqref{eq:cb} organizes three certificates of increasing
+locality. We state them for the sigmoid ridge class; the first two are
+specializations of general frameworks
+\cite{mhr,muelleretal,fmr}.
+
+\begin{proposition}[Fixed-sign minors certify the whole family]
+\label{prop:c1}
+If the minor products $m_I$ of $(A,B)$ are not all zero and the nonzero
+ones all share one sign, then
+\emph{every} map of the form $x\mapsto Af(Bx+c)$ built on $(A,B)$, where
+$f$ is applied componentwise and each component is strictly increasing
+and differentiable, is injective --- for every $c$ and every such $f$.
+\end{proposition}
+\begin{proof}
+By Lemma~\ref{lem:dd} a collision $F(p)=F(q)$, $u=q-p\ne0$, forces
+$A\Delta Bu=0$ with $\Delta$ a positive diagonal. By \eqref{eq:cb} every
+positive diagonal makes $\det(A\Delta B)$ a sum of terms of one sign, not
+all zero (some $m_I\ne0$ and all $\delta_I>0$), hence nonzero; so
+$A\Delta B$ is nonsingular and $u=0$. The argument never uses the specific
+activation: the identity of Lemma~\ref{lem:dd} is definitional
+slot-by-slot, divided differences of a strictly increasing component are
+strictly positive, and slots with $b_i\cdot u=0$ contribute nothing to
+$\Delta Bu$, so their diagonal entries may be chosen positive. This is the
+sigmoid-ridge instance of the sign-vector injectivity conditions of
+\cite{mhr,muelleretal}; in the terminology of \cite{mhr}, it is the case
+$\sgn(\ker A)\cap\sgn(\operatorname{im}B)=\{0\}$ certified through minors
+(cf.\ \cite[Cor.~4]{mhr}).
+\end{proof}
+
+\begin{proposition}[Segment-average positivity certifies one map]
+\label{prop:c2}
+If $\det\overline{DF}(p,q)\ne0$ for all $p,q$, then $F$ is injective.
+\end{proposition}
+\begin{proof}
+Lemma~\ref{lem:mv} with $G=F$, $\Omega=\R^n$; equivalently,
+Lemma~\ref{lem:dd} plus nonsingularity of $A\Delta(p,q)B$.
+\end{proof}
+
+The third condition, membership in $\mathcal N^{+}$ (pointwise
+positivity), is exactly the hypothesis of the NJC. Whether it certifies
+injectivity for $n\ge2$, $N\ge n+2$ is the open question. The established
+implications are
+\[
+\text{fixed-sign minors}
+\;\Longrightarrow\;
+\text{averaged-Jacobian nonsingularity}
+\;\Longrightarrow\;
+\text{injectivity}.
+\]
+By contrast, the unresolved implication is
+\[
+\mathcal N^{+}\;\overset{?}{\Longrightarrow}\;\text{injectivity}.
+\]
+Section~\ref{sec:witness} shows that the conjectural arrow cannot, in
+general, be proved by inserting averaged-Jacobian nonsingularity as an
+intermediate certificate: a mixed-minor $\mathcal N^{+}$ network can have
+a singular averaged Jacobian. For fixed-sign networks the insertion does
+succeed, by Proposition~\ref{prop:c1}.
+
+\begin{remark}[A convex-gradient subfamily]\label{rem:gradient}
+When $B$ has rank $n$, families with $A=RB^{\mathsf T}$, $R$ symmetric
+positive definite, are
+gradients of strictly convex potentials composed with a fixed linear
+isomorphism, hence injective for reasons independent of the conjecture;
+their minor products are automatically of one sign. Probing the open
+regime requires mixed-minor pairs, which is where our search
+(Section~\ref{sec:frontier}) operates.
+\end{remark}
+
+\section{Separation at \texorpdfstring{$n=2$, $N=4$}{n=2, N=4}}
+\label{sec:witness}
+
+\subsection{The witness}
+
+Let $F(x)=A\sigma(Bx+c)$ with
+\[
+A=\begin{pmatrix}
+-0.2398938710 & \phantom{-}0.2126956751 & -1.8416162379 & -0.0023672752\\
+-0.7053370168 & \phantom{-}1.2188352888 & -2.8603622059 & \phantom{-}0.0955954101
+\end{pmatrix},
+\]
+\[
+B=\begin{pmatrix}
+-0.2535883378 & -0.1878587713\\
+\phantom{-}0.1326989170 & \phantom{-}1.0232004273\\
+-1.9014473780 & \phantom{-}1.0928150941\\
+-0.3810233277 & -0.1438462106
+\end{pmatrix},
+\qquad
+c=\begin{pmatrix}
+-0.9291312391\\ \phantom{-}0.1478144974\\ -0.9119451690\\ \phantom{-}0.0633145878
+\end{pmatrix},
+\]
+displayed here to ten decimals; the repository file
+\texttt{data/witness.json} carries the canonical full-precision values,
+and every constant below is machine-computed from that file. The six minor
+products are
+\[
+m_{12}=0.0333916540,\quad
+m_{13}=0.3887018928,\quad
+m_{14}=0.0008635680,
+\]
+\[
+m_{23}=3.4206863493,\quad
+m_{24}=0.0086086719,\quad
+m_{34}=-0.1261291707,
+\]
+so $(A,B)$ is mixed-minor with a unique negative product.
+
+\subsection{Global positivity}
+
+\begin{theorem}[Global positivity]\label{thm:cert}
+$\det DF(x)>0$ for all $x\in\R^2$; that is, $F\in\mathcal N^{+}_{2,4}$.
+\end{theorem}
+
+The proof has a tail part and a compact part. Outside the disk of radius
+$R_0=601$, the unique negative term in \eqref{eq:cb} is dominated by the
+positive terms; the logarithmic domination margin is at most $-0.008291$.
+Inside the disk, an outward-rounded branch-and-bound covers the domain by
+$92{,}696$ terminal boxes and gives a strictly positive determinant lower
+bound on each box. The public certificate stores the subdivision and the
+bounds, while a dependency-free checker recomputes every load-bearing
+inequality and rejects malformed or ambiguous inputs.
+
+\subsection{Failure of the averaged-Jacobian certificate}
+
+\begin{theorem}[Separation]\label{thm:sep}
+Let $p=(-2.76601947,\,12)$ and $q=(7.08288117,\,12)$. Then
+\[
+\det DF\bigl(p+t(q-p)\bigr)\;\ge\;10^{-6}
+\quad\text{for all }t\in[0,1],
+\qquad\text{while}\qquad
+\det\overline{DF}(p,q)\;<\;0,
+\]
+the latter approximately $-1.7200\times10^{-5}$.
+Moreover, writing $u=q-p$, the function
+$s\mapsto\det\overline{DF}(p,\,p+su)$ is continuous on $(0,1]$ with
+positive limit $\det DF(p)$ (approximately $1.4051\times10^{-5}$) as
+$s\to0^{+}$, so there is
+$s^{*}\in(0,1)$ --- numerically $s^{*}\approx0.7766094$ --- at which the
+averaged Jacobian $\overline{DF}(p,\,p+s^{*}u)$ is itself
+\emph{singular}. Consequently the hypothesis of Lemma~\ref{lem:mv}
+(equivalently, of the mean-value univalence criteria of
+\cite{mcleod,parthasarathy,fmr}) fails for $F$, although
+$F\in\mathcal N^{+}_{2,4}$ with certified positivity; in addition the
+segment hull
+$\mathcal H:=\operatorname{conv}\{DF(p+t(q-p)):t\in[0,1]\}$ contains a
+singular matrix.
+\end{theorem}
+
+\begin{proof}
+An outward-rounded one-dimensional subdivision proves the displayed
+bound $10^{-6}$ on the whole segment. For reference, the smallest
+certified lower bound among $201$ sampled subintervals is
+$1.2620\times10^{-6}$. The averaged determinant and the value at $p$ are
+direct evaluations: Lemma~\ref{lem:dd} gives
+\[
+\overline{DF}(p,q)=A\Delta(p,q)B.
+\]
+
+The average of a continuous matrix path lies in the convex hull of its
+values, so $\overline{DF}(p,q)\in\mathcal H$; this is the matrix
+mean-value theorem of McLeod \cite{mcleod}, and also follows from the
+finite convex-combination form in \cite[Prop.~4.3]{fmr}. Every matrix
+$DF(p+t(q-p))$ has positive determinant, whereas
+$\overline{DF}(p,q)$ has negative determinant. Continuity of $\det$ on a
+line segment in $\mathcal H$ therefore gives a singular matrix in the
+hull.
+
+Finally, $\overline{DF}(p,p+su)$ depends continuously on $s$ by the
+integral formula in Lemma~\ref{lem:dd}. Its determinant tends to
+$\det DF(p)>0$ as $s\to0^+$ and is negative at $s=1$. The intermediate
+value theorem gives $s^*\in(0,1)$; bisection yields
+$s^*=0.7766094$ to seven digits, with second point
+$\approx(4.8827295,12)$.
+\end{proof}
+
+\begin{remark}[What is, and is not, new here]\label{rem:fmr45}
+Failure of the averaged-Jacobian certificate for a map with positive
+pointwise determinant is classical \emph{when the map is not injective}:
+by the contrapositive of Lemma~\ref{lem:mv}, every non-injective example
+exhibits it, a standard example in the classical global univalence
+literature \cite{galenikaido,parthasarathy} being the complex exponential
+$G(x,y)=e^{x}(\cos y,\sin y)$ with $\det DG=e^{2x}>0$ and period
+$2\pi$ in $y$. The content of Theorem~\ref{thm:sep} is therefore not hull or average
+degeneracy by itself, but its occurrence under global pointwise positivity
+at the first open width. The witness is not known to be non-injective; if
+the conjecture holds, it separates the mean-value certificate from the
+truth of injectivity. Within \cite{fmr}, the closest point of
+contact is Example~4.5, which separates certificate classes for a
+monomial map ($Q(D_G)$ contains singular matrices while a specialized
+class $q(B)$ certifies injectivity) and leaves the singularity status of
+$\operatorname{conv}(J_G)$ unaddressed; Theorem~\ref{thm:sep} exhibits a
+singular averaged Jacobian itself. To our knowledge this is the first
+certified instance in the sigmoid ridge class.
+\end{remark}
+
+\subsection{Partial injectivity of the witness: sector exclusion}
+
+Theorem~\ref{thm:sep} removes the standard route to injectivity for the
+witness, and raises the natural question of whether the witness is
+injective at all. We do not know; what we can prove confines any
+hypothetical collision sharply. Adopting the sign-vector viewpoint of
+\cite{mhr}: by Lemma~\ref{lem:dd}, a collision with direction $u$ forces
+$\gamma:=\Delta Bu\in\ker A\setminus\{0\}$ with
+$\sgn(\gamma)=\sgn(Bu)$ componentwise.
+
+\begin{theorem}[Sector exclusion]\label{thm:sector}
+The sign vector $\sgn(Bu)$, $u\ne0$, takes exactly $16$ values: $8$
+open-sector patterns and $8$ boundary-ray patterns. For $14$ of them
+there is a certificate $\lambda\in\R^2$ with
+$\sigma_i\,(A^{\mathsf T}\lambda)_i>0$ for every $i$ with $\sigma_i\ne0$,
+and then no nonzero $\gamma\in\ker A$ realizes the pattern: indeed
+$0=\lambda^{\mathsf T}A\gamma=\sum_i(A^{\mathsf T}\lambda)_i\gamma_i$
+would be a sum of nonnegative terms, at least one strictly positive. The
+two remaining patterns $\pm(-,+,+,-)$ are realized in $\ker A$, so the
+exclusion is sharp. Consequently any collision direction of the witness
+lies strictly inside the open sector
+$S^{+}=(60.1128^\circ,\,110.6828^\circ)$ or its antipode; in particular
+$F$ is injective along every line whose direction lies outside
+$S^{+}\cup S^{-}$, including all eight sector boundaries.
+\end{theorem}
+
+The fourteen dual certificates have minimum margin $0.017442$ after
+normalizing $\|\lambda\|=1$; each is checked by one matrix-vector
+product. The witness segment direction $(1,0)$ has pattern $(-,+,-,-)$
+and is excluded, consistent with Theorem~\ref{thm:sep}.
+
+Beyond direction, magnitude is also confined: writing $\delta_{(i)}$
+for the divided difference of unit $i$, a collision makes the averaged
+Jacobian singular along the collision direction, so the Cauchy--Binet
+sum \eqref{eq:cb} vanishes there; moving the unique negative term
+across, discarding the remaining nonnegative terms, dividing by
+$\delta_{(3)}>0$, and bounding $\delta_{(4)}\le\tfrac14$ yields the
+linear domination inequality
+$m_{23}\,\delta_{(2)}+m_{13}\,\delta_{(1)}\le|m_{34}|/4$, numerically
+$3.4206863\,\delta_{(2)}+0.3887019\,\delta_{(1)}\le 0.0315323$, hence
+$\delta_{(2)}\le 0.0092182$ and $\delta_{(1)}\le 0.0811221$, and thus
+saturated preactivations $|t_2|\ge3.300$ and $|t_1|\ge1.1255$ somewhere
+on the collision segment. All unit indices in this paragraph are 1-based.
+
+\begin{question}[Injectivity of the witness]\label{q:witness}
+Is the witness network injective? Equivalently, does the finite-dimensional confined system
+--- collision direction strictly inside $S^{+}\cup S^{-}$, the magnitude
+and saturation bounds above, and $\Delta Bu\in\ker A$ --- admit a solution?
+\end{question}
+
+\section{Frontier study}\label{sec:frontier}
+
+We also tested how often the phenomenon in Theorem~\ref{thm:sep}
+appeared in the search distribution used to find the witness. We
+sampled random mixed-minor candidates at $n=2$, $N=4$ using the pinned
+seeds in \texttt{code/njc\_v3.py}. In the study environment, $911$
+draws produced $45$ accepted mixed-minor networks certified in
+$\mathcal N^{+}$; for $44$ of them segment-average positivity was also
+certified over the searched pair space, while exactly one, the witness,
+exhibited a negative segment average.
+
+The pinned seeds fix the random draws, but not every floating-point
+accept/reject decision made by the search code. These counts should
+therefore be read as the recorded output of the study environment
+rather than as platform-independent enumerative data. The accepted
+networks ship in \texttt{data/e3.pkl}. The witness itself, and every
+load-bearing certified claim about it, are platform-independent: they
+are anchored to \texttt{data/witness.json} and verified by the
+dependency-free checker.
+
+No collision was found in the searched region for any accepted
+network. A second implementation under an independent sampling protocol
+also accepted $45$ networks and found no additional frontier instance.
+Across the two runs, one frontier instance appeared among roughly
+ninety accepted outputs; this is a search-distribution observation, not
+an estimate of prevalence in the class.
+
+Two caveats are important. First, the acceptance and certification
+filters impose magnitude thresholds, so borderline cases may be
+underrepresented. Second, the absence of detected collisions is
+evidence only about the searched regions, not a certificate of
+injectivity.
+
+\section{The Neural Jacobian Conjecture as kernel alignment}
+\label{sec:njc}
+
+By Lemma~\ref{lem:dd}, injectivity of $F$ is exactly the statement
+\[
+u\ne0\ \Longrightarrow\ A\,\Delta(p,p+u)\,B\,u\ne0 .
+\]
+The closed cases prove this by making $A\Delta B$ nonsingular for every
+positive diagonal arising as a divided-difference matrix.
+Theorem~\ref{thm:sep} shows that this route already fails as a general
+proof strategy at the first open width: for the certified $n=2$, $N=4$
+witness, $\det\bigl(A\Delta(p,q)B\bigr)$ changes sign as $(p,q)$
+varies, so there exist pairs at which the averaged Jacobian is singular.
+What remains of the conjecture is therefore a genuine alignment
+statement: whenever $A\Delta(p,q)B$ is singular, the direction $q-p$ must
+avoid its kernel. Our witness makes this concrete --- its kernel-avoidance
+is exactly Question~\ref{q:witness} --- and the sector-exclusion method
+suggests that sign-vector techniques \cite{mhr,muelleretal,fmr}, rather
+than averaging, are the natural tools for the open regime. The conjecture
+itself we neither prove nor refute; the frontier study is consistent
+with it, and the separation example
+explains why it has resisted mean-value methods.
+
+Thus the first open width already separates pointwise positivity from
+the averaged-Jacobian certificate. The Neural Jacobian Conjecture, if
+true, must rely on a finer alignment constraint between
+divided-difference kernels and displacement directions, rather than on
+nonsingularity of the averaged Jacobian alone.
+
+\section{Verification and reproducibility}\label{sec:repro}
+
+\paragraph{Repository and command.}
+The public repository is
+\url{https://github.com/lmdixon23/njc-separation}. Install the locked dependencies with
+\texttt{python -m pip install -r requirements-lock.txt}, then run
+\texttt{bash run\_all.sh}. The suite verifies the SHA-256 manifest before running the mathematical
+and certificate checks.
+
+\paragraph{Proof and certificate boundary.}
+The divided-difference identities, width-$(n+1)$ argument, certificate hierarchy, and sign-vector
+implications are proved analytically. Global positivity of the explicit witness uses the stored
+compact-and-tail certificate checked by \texttt{CHECK.py}. The segment lower bound uses
+outward-rounded interval subdivision. The frontier counts describe the shipped search run and are
+not asserted as platform-independent enumerative data.
+
+\paragraph{Independent reconstruction.}
+\texttt{BLIND\_CHECK.py} reads only the canonical witness data and independently recomputes the mixed
+minors, negative averaged determinant, and positive pointwise samples on the displayed segment. The
+proof-bearing checker does not trust verdict fields in the certificate; it reconstructs the required
+bounds and partition conditions.
+
+\paragraph{Limitations.}
+The witness's injectivity is open. The sector theorem supplies necessary conditions for a collision,
+not a collision exclusion. The Neural Jacobian Conjecture remains open for $n\ge2$ and
+$N\ge n+2$, and the frontier study does not estimate prevalence in that class.
+
+\section*{Declarations}
+\paragraph{Funding.} No funding was received for this work.
+\paragraph{Competing interests.} The author declares no competing interests.
+\paragraph{Data and code availability.} The canonical witness, certificate, search data, SHA-256
+manifest, and verification scripts are available at
+\url{https://github.com/lmdixon23/njc-separation}.
+\paragraph{AI assistance.} Text-to-text generative AI tools, including Claude and GPT, assisted with
+candidate exploration, code drafting and review, adversarial checking, and editorial revision. Any
+AI-assisted mathematical claim, source attribution, code fragment, constant, or numerical output
+retained in the work was checked independently of the AI response through hand derivation, source
+verification, exact recomputation, or validated numerical computation as appropriate. The author
+determined the research direction and acceptance criteria and assumes full responsibility for the
+work.
+
+\begin{thebibliography}{9}
+\bibitem{moonshine} X.~Chen and X.~Jiang, \emph{Moonshine: an autonomous
+mathematical research agent centered on conjecture generation},
+arXiv:2606.10806, 2026.
+\bibitem{galenikaido} D.~Gale and H.~Nikaido, \emph{The Jacobian matrix and
+global univalence of mappings}, Math.\ Ann.\ 159 (1965), 81--93.
+\bibitem{mcleod} R.~M.~McLeod, \emph{Mean value theorems for vector valued
+functions}, Proc.\ Edinburgh Math.\ Soc.\ 14 (1965), 197--209.
+\bibitem{parthasarathy} T.~Parthasarathy, \emph{On Global Univalence
+Theorems}, Lecture Notes in Mathematics 977, Springer, 1983.
+\bibitem{fmr} E.~Feliu, S.~M\"uller, and G.~Regensburger,
+\emph{Characterizing injectivity of classes of maps via classes of
+matrices}, Linear Algebra Appl. 580 (2019), 236--261. arXiv:1901.11272.
+\bibitem{muelleretal} S.~M\"uller, E.~Feliu, G.~Regensburger, C.~Conradi,
+A.~Shiu, and A.~Dickenstein, \emph{Sign conditions for injectivity of
+generalized polynomial maps with applications to chemical reaction
+networks and real algebraic geometry}, Found.\ Comput.\ Math.\ 16 (2016),
+69--97.
+\bibitem{mhr} S.~M\"uller, J.~Hofbauer, and G.~Regensburger, \emph{On the
+bijectivity of families of exponential/generalized polynomial maps},
+SIAM J.\ Appl.\ Algebra Geom.\ 3 (2019), no.~3, 412--438.
+arXiv:1804.01851.
+\end{thebibliography}
+\end{document}

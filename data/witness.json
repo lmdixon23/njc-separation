@@ -1,0 +1,69 @@
+{
+  "description": "Certified frontier witness: mixed-minor network in N+ whose segment-averaged Jacobian determinant is negative at an explicit pair",
+  "A": [
+    [
+      -0.23989387103981982,
+      0.2126956750571866,
+      -1.8416162379222727,
+      -0.0023672751772596287
+    ],
+    [
+      -0.7053370167594262,
+      1.218835288777745,
+      -2.860362205938082,
+      0.09559541009657352
+    ]
+  ],
+  "B": [
+    [
+      -0.25358833781203044,
+      -0.18785877128183334
+    ],
+    [
+      0.13269891700462932,
+      1.0232004272899804
+    ],
+    [
+      -1.9014473779969603,
+      1.0928150941138732
+    ],
+    [
+      -0.3810233277023745,
+      -0.14384621061579758
+    ]
+  ],
+  "c": [
+    -0.9291312391034967,
+    0.1478144973763546,
+    -0.9119451690172136,
+    0.06331458777292753
+  ],
+  "witness_pair": {
+    "p": [
+      -2.76601947,
+      12.0
+    ],
+    "q": [
+      7.08288117,
+      12.0
+    ]
+  },
+  "claimed": {
+    "negative_minor_I": [
+      2,
+      3
+    ],
+    "negative_minor_value": -0.12612917067561605,
+    "seg_avg_det": -1.7199778072730237e-05,
+    "min_detDF_on_segment": 1.2619946820477207e-06,
+    "minors": {
+      "01": 0.03339165401044376,
+      "02": 0.38870189278495937,
+      "03": 0.0008635680197948829,
+      "12": 3.420686349299934,
+      "13": 0.008608671938474574,
+      "23": -0.12612917067561605
+    }
+  },
+  "claimed_note": "All claimed values are machine-computed from the A, B, c and witness_pair fields of this file exactly as shipped. The witness_pair coordinates (8 decimals) are canonical: the pair IS the witness, not an approximation to one. v1.1 2026-06-11: seg_avg_det and min_detDF_on_segment previously carried values computed from the pre-rounding optimizer pair; corrected to shipped-pair values after the author's blind check exposed the mismatch. v1.2 2026-06-11: claimed.minors added carrying all six minor products (paper-facing constants), so the certificate checker audits every printed minor, not only the negative one."
+}

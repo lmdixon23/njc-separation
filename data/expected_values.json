@@ -1,0 +1,12 @@
+{
+  "item1_negative_minor": {
+    "I": [
+      2,
+      3
+    ],
+    "value": -0.12612917067561605
+  },
+  "item2_seg_avg_det": -1.7199778072730237e-05,
+  "item3_min_detDF_on_segment": 1.2619946820477207e-06,
+  "note": "All values machine-computed from data/witness.json exactly as shipped (the canonical 8-decimal witness_pair). Faithful reimplementations should agree to ~1e-12 relative; differences beyond ~1e-9 indicate a bug on one side and must be adjudicated, not tolerated. v1.1 2026-06-11: items 2-3 previously stored values from the pre-rounding optimizer pair (rel. discrepancy 1.4e-4 vs shipped pair); caught by the author's blind check."
+}
